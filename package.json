@@ -5,7 +5,7 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "test": "node index.js --workspace sobanieca --repository redocly-trial --username sobanieca --app-password zZqRhTp8tmL7ETkLYnH5 --branch main --package redoc --version ^2.0.0 --debug",
+    "test": "node index.js --workspace sobanieca --repository redocly-trial --username sobanieca --app-password myPassword --branch main --package redoc --version ^2.0.0 --debug",
     "start": "node index.js"
   },
   "repository": {
@@ -21,6 +21,7 @@
   "dependencies": {
     "base-64": "^1.0.0",
     "commander": "^9.3.0",
+    "formdata-node": "^4.3.3",
     "node-fetch": "^3.2.8"
   }
 }

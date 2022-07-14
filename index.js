@@ -1,6 +1,7 @@
 import { program } from 'commander';
 import fetch from 'node-fetch';
 import base64 from 'base-64';
+import { FormData } from 'formdata-node';
 
 process.on('uncaughtException', err => {
   console.log(`Uncaught Exception: ${err.message}`)
@@ -33,45 +34,96 @@ const debug = (msg) => {
   }
 }
 
-debug("Input parameters provided:");
-debug(options);
-
-// TODO: validation of input parameters
-// TODO: use some more 'industry-standard' logger?
-
 info(`Updating ${options.repository} to version ${options.version} of ${options.package}...`);
 
-const getPackageJson = async () => {
+const getPackageJsonPath = () => {
   let path = "";
   if (options.path) {
     //TODO: ensure options.path ends with '/'
     path = options.path;
   }
-  const endpointUrl = `https://api.bitbucket.org/2.0/repositories/${options.workspace}/${options.repository}/src/${options.branch}/${path}package.json`;
+  return `${path}package.json`;
+}
+
+const getBaseEndpoint = () => { 
+  return `https://api.bitbucket.org/2.0/repositories/${options.workspace}/${options.repository}`;
+}
+
+const getAuthHeader = () => ({
+  'Authorization': `Basic ${base64.encode(options.username + ":" + options.appPassword)}`
+});
+
+const getPackageJson = async () => {
+  const endpointUrl = `${getBaseEndpoint()}/src/${options.branch}/${getPackageJsonPath()}`;
   debug(`Getting package.json file content from: ${endpointUrl}...`);
   const response = await fetch(endpointUrl, {
     method: 'GET',
-    headers: {
-      'Authorization': `Basic ${base64.encode(options.username + ":" + options.appPassword)}`
-    }
+    headers: getAuthHeader() 
   });
-  debug(`Obtained Bitbucket API response status: ${response.status}`);
+  debug(`Response status: ${response.status}`);
   // TODO: verify response status and content
   return await response.json();
 }
+
+const sendPackageJson = async (packageJsonContent) => { 
+  const branchName = 'feature/auto-update-' + Date.now(); const form = new FormData();
+
+  form.set(getPackageJsonPath(), packageJsonContent);
+  form.set('branch', branchName);
+  form.set('message', `Update of ${options.package} to version ${options.version}`);
+
+  const endpointUrl = `${getBaseEndpoint()}/src`;
+  debug(`Pushing package.json file content to ${endpointUrl}`);
+  const response = await fetch(endpointUrl, {
+    method: 'POST',
+    headers: getAuthHeader(),
+    body: form
+  });
+  debug(`Response status: ${response.status}`);
+
+  return branchName;
+}
+
+const openPullRequest = async (branchName) => {
+  debug('Creating pull request...');
+  const endpointUrl = `${getBaseEndpoint()}/pullrequests`;
+  await fetch(endpointUrl, {
+    method: 'POST',
+    headers: {
+      ...getAuthHeader(),
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      title: `Update of ${options.package} to version ${options.version}`,
+      source: {
+        branch: {
+          name: branchName
+        }
+      }
+    })
+  });
+}
+
+debug("Input parameters provided:");
+debug(options);
+// TODO: validation of input parameters
+// TODO: use some more 'industry-standard' logger?
 
 const currentPackageJson = await getPackageJson();
 debug('Obtained following package.json file content:');
 debug(currentPackageJson);
 
-// TODO: ensure that package exists
+// TODO: ensure that package exists, check for null reference exceptions
+// TODO: check if there are no breaking changes update, if yes - display warning, or proceed if --forced flag is provided
 currentPackageJson.dependencies[options.package] = options.version;
 
 debug('Package.json file content after library update:');
 debug(currentPackageJson);
 
-const targetPackageJsonContent = JSON.stringify(currentPackageJson);
+// TODO: determine the output format, spaces tabs? Or decide with different approach to not parse JSON at all and do simple replace (with regex)
+const targetPackageJsonContent = JSON.stringify(currentPackageJson, null, 4);
 
+const newFeatureBranchName = await sendPackageJson(targetPackageJsonContent);
 
-// TODO: https://www.npmjs.com/package/semver
+await openPullRequest(newFeatureBranchName);
 
