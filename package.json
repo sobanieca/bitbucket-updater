@@ -1,0 +1,22 @@
+{
+  "name": "bitbucket-updater",
+  "version": "0.1.0",
+  "description": "Tool for creating automated PR's to update BitBucket repository NPM packages",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sobanieca/bitbucket-updater.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/sobanieca/bitbucket-updater/issues"
+  },
+  "homepage": "https://github.com/sobanieca/bitbucket-updater#readme",
+  "dependencies": {
+    "commander": "^9.3.0"
+  }
+}
